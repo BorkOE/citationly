@@ -5,6 +5,19 @@ from tkinter import ttk
 from sqlalchemy import create_engine, Column, Integer, String, Date
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime as dt
+import argparse
+
+
+# Initialize parser
+parser = argparse.ArgumentParser()
+parser.add_argument('-c', '--clipboard', action='store_true', 
+                    help='Check for citation in clipboard')
+parser.add_argument('-cit', "--citation", type=str, help="The citation string.", default='')
+args = parser.parse_args()          # Parse the arguments
+
+if args.clipboard:
+    import pyperclip
+    args.citation = pyperclip.paste()
 
 # Define the database schema
 Base = declarative_base()
@@ -39,6 +52,7 @@ root.title("Academic Citation Helper")
 text_label = tk.Label(root, text="Text to be cited:")
 text_label.grid(row=0, column=0, padx=5, pady=5)
 text_box = tk.Entry(root)
+text_box.insert(0, args.citation)
 text_box.grid(row=0, column=1, padx=5, pady=5)
 
 page_label = tk.Label(root, text="Page numbers:")
@@ -184,9 +198,6 @@ key2_combobox.bind("<<ComboboxSelected>>", lambda x: insert_text_from_combobox(k
 root.bind('<Return>', lambda x: submit_citation())
 
 # Delete values
-# for b in [text_box, page_box, author_box, book_box, key1_box, key2_box]:
-#     b.bind('<Escape>', lambda x: insert_text(author_box, ''))
-
 text_box.bind('<Escape>', lambda x: insert_text(text_box, ''))
 page_box.bind('<Escape>', lambda x: insert_text(page_box, ''))
 author_box.bind('<Escape>', lambda x: insert_text(author_box, ''))
@@ -203,8 +214,3 @@ command line logik - Kunna köra med flagga för citat i clipboard
 '''
 
 root.mainloop()
-
-
-
-
-# keywords = sorted(set((citation.key1, citation.key2) for citation in citations))

@@ -1,8 +1,10 @@
 '''Interface for adding academic citations to dabase'''
 
 import tkinter as tk
-from sqlalchemy import create_engine, Column, Integer, String
+from tkinter import ttk
+from sqlalchemy import create_engine, Column, Integer, String, Date
 from sqlalchemy.orm import declarative_base, sessionmaker
+from datetime import datetime as dt
 
 # Define the database schema
 Base = declarative_base()
@@ -20,6 +22,7 @@ class Citation(Base):
     course = Column(String)
     extra1 = Column(String)
     extra2 = Column(String)
+    datestamp = Column(Date)
 
 
 # Create the database engine and session
@@ -83,6 +86,7 @@ def submit_citation():
         book_title=book_box.get(),
         key1=key1_box.get(),
         key2=key2_box.get(),
+        datestamp=dt.now(),
     )
     session.add(citation)
     session.commit()
@@ -95,6 +99,7 @@ def submit_citation():
     key2_box.delete(0, tk.END)
 
     populate_author_listbox()           # Updates if we just submitted a new author
+    populate_key_comboboxes()
 
 def insert_text(box, text):
     box.delete(0, tk.END)
@@ -110,6 +115,10 @@ def insert_text_from_listbox(box, listbox):
     
     if box == author_box:               # Trigger update populate_book_listbox
         populate_book_listbox(author=text)
+
+def insert_text_from_combobox(box, combobox):
+    text = combobox.get()
+    insert_text(box, text)
 
 def populate_author_listbox():
     '''Finds authors already in database and fills listbox'''
@@ -142,6 +151,14 @@ def populate_book_listbox(author=None):
     if author:
         insert_text(book_box, books[0])
 
+def populate_key_comboboxes():
+    keys1 = set([v[0] for v in session.query(Citation.key1).distinct().all() if v[0] != ''])
+    keys2 = set([v[0] for v in session.query(Citation.key2).distinct().all() if v[0] != ''])
+    all_keys = list(keys1 | keys2)
+    key1_combobox['values'] = all_keys
+    key2_combobox['values'] = all_keys
+
+
 # Create a button to submit the citation information
 submit_button = tk.Button(root, text="Submit", command=submit_citation)
 submit_button.grid(row=6, column=1, padx=5, pady=5)
@@ -150,23 +167,44 @@ author_listbox = tk.Listbox(root, width=15, height=5)
 author_listbox.grid(row=2, column=2)
 book_listbox = tk.Listbox(root, width=15, height=5)
 book_listbox.grid(row=3, column=2)
+key1_combobox = ttk.Combobox(root, width=15)
+key1_combobox.grid(row=4, column=2)
+key2_combobox = ttk.Combobox(root, width=15)
+key2_combobox.grid(row=5, column=2)
 
 populate_author_listbox()
 populate_book_listbox()
-
+populate_key_comboboxes()
 
 # User input logic
 author_listbox.bind("<<ListboxSelect>>", lambda x: insert_text_from_listbox(author_box, author_listbox))
 book_listbox.bind("<<ListboxSelect>>", lambda x: insert_text_from_listbox(book_box, book_listbox))
+key1_combobox.bind("<<ComboboxSelected>>", lambda x: insert_text_from_combobox(key1_box, key1_combobox))
+key2_combobox.bind("<<ComboboxSelected>>", lambda x: insert_text_from_combobox(key2_box, key2_combobox))
 root.bind('<Return>', lambda x: submit_citation())
+
+# Delete values
+# for b in [text_box, page_box, author_box, book_box, key1_box, key2_box]:
+#     b.bind('<Escape>', lambda x: insert_text(author_box, ''))
+
+text_box.bind('<Escape>', lambda x: insert_text(text_box, ''))
+page_box.bind('<Escape>', lambda x: insert_text(page_box, ''))
+author_box.bind('<Escape>', lambda x: insert_text(author_box, ''))
+book_box.bind('<Escape>', lambda x: insert_text(book_box, ''))
+key1_box.bind('<Escape>', lambda x: insert_text(key1_box, ''))
+key1_combobox.bind('<Escape>', lambda x: insert_text(key1_box, ''))
+key2_box.bind('<Escape>', lambda x: insert_text(key2_box, ''))
+key2_combobox.bind('<Escape>', lambda x: insert_text(key2_box, ''))
 
 
 # TODO: 
 '''
-Gör combobox för keywords. Plockar alla keywords i databasen
-Lägg till year och låt den fungera likadant med boxarna, (liten listbox dock)
-Datestamp automatiskt, sjukt smidigt för att filtrera sen
+command line logik - Kunna köra med flagga för citat i clipboard
 '''
 
 root.mainloop()
 
+
+
+
+# keywords = sorted(set((citation.key1, citation.key2) for citation in citations))

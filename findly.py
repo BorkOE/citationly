@@ -1,16 +1,30 @@
 import tkinter as tk
 import requests
+from re import findall
 
 # TODO
 '''
-Ha en till datavariabel, dict, som sparar de tillagda titlarna. Så vi kan söka vidare och forfarande ha kvar 
-On export, gå igenom id i vald data och hämta bibtex
+Ändra från json till bibtex
 '''
 
 ignore = {'urls', 'VtiD'}
 data = {}
 data_choosen = {}
 entry_width = 80
+
+def fix_symbols(s):
+    s_fixed = (s
+               .replace(r'{\AA}', 'Å')
+               .replace(r'{\aa}', 'å')
+               .replace(r'{\"A}', 'Ä')
+               .replace(r'{\"a}', 'ä')
+               .replace(r'{\"O}', 'Ö')
+               .replace(r'{\"o}', 'ö')
+               .replace(r'{\O}', 'Ø')
+               .replace(r'{\o}', 'ø')
+               .replace(r'{\&}', '&')
+               )
+    return s_fixed
 
 def on_item_select(event):
     '''Gets data on listbox selection and calls display_data'''
@@ -27,7 +41,7 @@ def on_item_select(event):
 
 def on_export():
     selected_items = [listbox.get(idx) for idx in listbox.curselection()]
-    export_to_biblatex(selected_items)
+    export_to_biblatex()
 
 def on_search():
     search_query = search_entry.get()
@@ -37,41 +51,38 @@ def on_search():
     update_listbox(search_results)
 
 def display_data(selected_data):
-    # Clear previous data
-    # data_frame['state'] = tk.NORMAL
+    '''Clears previous data and insert new'''
     data_frame.delete(1.0, tk.END)
+    data_frame.insert(tk.END, f"{fix_symbols(selected_data)}")
 
-    # Display selected data in the data_frame
-    for key, value in selected_data.items():
-        data_frame.insert(tk.END, f"{key}: {value}\n")
+def export_to_biblatex():
+    bib_data = '\n\n'.join([(data | data_choosen)[k] for k in selected_listbox.get(0, tk.END)])
+    with open("output.bib", 'w') as bib_file:
+        bib_file.write(bib_data)
 
-def export_to_biblatex(selected_items):
-    pass
-    # Generate the BibLaTeX file
-    # Add the selected items to the file
-    # Save the file
+def parse_data(in_data):
+    out_data = {}
+    split_me = in_data.replace('\n\n\n', '\n')
+    for entry in split_me.split('\n@'):
+        if not entry:
+            continue
+        entry_fix = fix_symbols(entry)
+        title = findall(r'title={([^}]+)}', entry_fix)[0]
+        if title in out_data:
+            title += '_dup'
+        out_data.update({fix_symbols(title): '@'+entry})
 
-def parse_data(json_data):
-    '''turns list of dicts into one data dict'''
-    parsed_data = {}
-    data_list = json_data['xsearch']['list']
-    for lst in data_list:
-        title = lst.get('title')
-        if title in parsed_data:
-            lst.update({'title': f'{title}_dup'})
-            title = lst.get('title')
-        parsed_data.update(
-            {title: {k: v for k, v in lst.items() if k not in ignore | {'title'}}})
-    
-    return parsed_data
+
+    return out_data
 
 def search_data(query):
     '''Search libris and parse result, updates data'''
     global data
-    url = f'http://libris.kb.se/xsearch?query={query}&format=json&n=50'
+    # url = f'http://libris.kb.se/xsearch?query={query}&format=json&n=50'
+    url = f'http://libris.kb.se/xsearch?query={query}&format=bibtex&n=50'
     response = requests.get(url)
-    json_data = response.json()
-    data = parse_data(json_data)
+    # json_data = response.json()
+    data = parse_data(response.text)
     return data
 
 def update_listbox(items):
